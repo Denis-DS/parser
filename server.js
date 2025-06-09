@@ -100,6 +100,7 @@ async function parseSite(url, proxyOptions) {
   const downloaded = {};
 
   const chromePath = puppeteer.executablePath();
+  console.log('🧪 Chrome path:', puppeteer.executablePath());
   const launchOptions = {
     headless: true,
     executablePath: chromePath,
