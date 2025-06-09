@@ -99,10 +99,9 @@ async function parseSite(url, proxyOptions) {
   const zip = new JSZip();
   const downloaded = {};
 
-  const chromePath = puppeteer.executablePath();  
   const launchOptions = {
     headless: true,
-    executablePath: chromePath,
+    executablePath: '/opt/render/.cache/puppeteer/chrome/linux-*/chrome-linux64/chrome',
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   };
 
