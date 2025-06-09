@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Парсер сайта</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 text-gray-800">
+  <div class="min-h-screen flex items-center justify-center px-4">
+    <div class="max-w-xl w-full bg-white shadow-md rounded-xl p-8 space-y-6" id="main-container">
+      <h1 class="text-2xl font-bold text-center">Скачать сайт в архиве</h1>
+
+      <form id="parser-form" class="space-y-4">
+        <div>
+          <label class="block font-semibold mb-1">URL сайта:</label>
+          <input type="text" name="url" required placeholder="https://example.com"
+            class="w-full border rounded-lg px-3 py-2" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm mb-1">Тип прокси:</label>
+            <select name="proxyType" class="w-full border rounded-lg px-3 py-2">
+              <option value="">Без прокси</option>
+              <option value="http">HTTP</option>
+              <option value="socks5">SOCKS5</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Хост:</label>
+            <input type="text" name="proxyHost" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Порт:</label>
+            <input type="text" name="proxyPort" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Логин:</label>
+            <input type="text" name="proxyUsername" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Пароль:</label>
+            <input type="password" name="proxyPassword" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+        </div>
+
+        <button type="submit"
+          class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">Запустить парсинг</button>
+      </form>
+
+      <div id="status" class="hidden text-center space-y-4">
+        <div id="parsing" class="hidden">
+          <div class="flex items-center justify-center space-x-2">
+            <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none"
+              viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            <span class="text-blue-700 font-medium">Идет парсинг сайта...</span>
+          </div>
+        </div>
+
+        <div id="done" class="hidden space-y-3">
+          <p class="text-green-600 font-semibold">✅ Файл готов! Идет загрузка...</p>
+          <button onclick="location.reload()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded">
+            Начать новый парсинг
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("parser-form");
+    const statusBox = document.getElementById("status");
+    const parsing = document.getElementById("parsing");
+    const done = document.getElementById("done");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      form.classList.add("hidden");
+      statusBox.classList.remove("hidden");
+      parsing.classList.remove("hidden");
+
+      const formData = new FormData(form);
+      const body = Object.fromEntries(formData.entries());
+
+      try {
+        const response = await fetch("/parse", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+
+        if (!response.ok) throw new Error("Ошибка парсинга");
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "site_archive.zip";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        parsing.classList.add("hidden");
+        done.classList.remove("hidden");
+      } catch (err) {
+        parsing.classList.add("hidden");
+        statusBox.innerHTML = `<p class="text-red-600 font-semibold">❌ Ошибка: ${err.message}</p>
+          <button onclick="location.reload()" class="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded">
+            Вернуться назад
+          </button>`;
+      }
+    });
+  </script>
+</body>
+
+</html>
