@@ -102,6 +102,7 @@ async function parseSite(url, proxyOptions) {
   
   const launchOptions = {
     headless: true,
+    executablePath: chromePath,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   };
 
