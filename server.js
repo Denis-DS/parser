@@ -4,7 +4,7 @@ import os from "os";
 import path from "path";
 import JSZip from "jszip";
 import { fileURLToPath } from "url";
-import puppeteerExtra from "puppeteer-extra";
+import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import proxyChain from "proxy-chain";
 
@@ -12,13 +12,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static("public"));
 
-puppeteerExtra.use(StealthPlugin());
+puppeteer.use(StealthPlugin());
 
 function replaceAsync(str, regex, asyncFn) {
   const matches = [];
@@ -28,13 +28,7 @@ function replaceAsync(str, regex, asyncFn) {
   );
 }
 
-async function downloadResource(
-  url,
-  baseUrl,
-  zip,
-  downloaded,
-  folder = "assets"
-) {
+async function downloadResource(url, baseUrl, zip, downloaded, folder = "assets") {
   if (downloaded[url]) return downloaded[url];
   try {
     const fullUrl = new URL(url, baseUrl).href;
@@ -46,9 +40,7 @@ async function downloadResource(
     }
 
     const buffer = await res.arrayBuffer();
-    let filename = decodeURIComponent(
-      fullUrl.split("/").pop().split("?")[0] || `file_${Date.now()}`
-    );
+    let filename = decodeURIComponent(fullUrl.split("/").pop().split("?")[0] || `file_${Date.now()}`);
     if (!filename.includes(".")) filename += ".bin";
     const relPath = `${folder}/${filename}`;
     downloaded[url] = relPath;
@@ -76,26 +68,14 @@ async function downloadResource(
 async function processCss(css, baseUrl, zip, downloaded, folder) {
   const importRegex = /@import\s+(?:url\()?['"]?([^'")]+)['"]?\)?;/g;
   css = await replaceAsync(css, importRegex, async (match, url) => {
-    const newPath = await downloadResource(
-      url,
-      baseUrl,
-      zip,
-      downloaded,
-      folder
-    );
+    const newPath = await downloadResource(url, baseUrl, zip, downloaded, folder);
     return newPath ? `@import url(../${newPath});` : match;
   });
 
   const urlRegex = /url\((['"]?)([^'")]+)\1\)/g;
   css = await replaceAsync(css, urlRegex, async (match, quote, url) => {
     if (url.startsWith("data:")) return match;
-    const newPath = await downloadResource(
-      url,
-      baseUrl,
-      zip,
-      downloaded,
-      folder
-    );
+    const newPath = await downloadResource(url, baseUrl, zip, downloaded, folder);
     return newPath ? `url(../${newPath})` : match;
   });
 
@@ -103,16 +83,9 @@ async function processCss(css, baseUrl, zip, downloaded, folder) {
 }
 
 async function processJs(js, baseUrl, zip, downloaded, folder) {
-  const urlRegex =
-    /(['"])(https?:\/\/[^'"]+\.(png|jpe?g|gif|svg|woff2?|ttf|eot|js|css))\1/g;
+  const urlRegex = /(['"])(https?:\/\/[^'"]+\.(png|jpe?g|gif|svg|woff2?|ttf|eot|js|css))\1/g;
   return await replaceAsync(js, urlRegex, async (match, quote, url) => {
-    const newPath = await downloadResource(
-      url,
-      baseUrl,
-      zip,
-      downloaded,
-      folder
-    );
+    const newPath = await downloadResource(url, baseUrl, zip, downloaded, folder);
     return newPath ? `"../${newPath}"` : match;
   });
 }
@@ -132,9 +105,7 @@ async function parseSite(url, proxyOptions) {
     const { type, username, password, host, port } = proxyOptions;
     proxyUrl = `${type}://`;
     if (username && password) {
-      proxyUrl += `${encodeURIComponent(username)}:${encodeURIComponent(
-        password
-      )}@`;
+      proxyUrl += `${encodeURIComponent(username)}:${encodeURIComponent(password)}@`;
     }
     proxyUrl += `${host}:${port}`;
 
@@ -143,7 +114,7 @@ async function parseSite(url, proxyOptions) {
     console.log(`🌐 Используем прокси: ${proxyUrl}`);
   }
 
-  const browser = await puppeteerExtra.launch(launchOptions);
+  const browser = await puppeteer.launch(launchOptions);
   const page = await browser.newPage();
   if (proxyOptions.username && proxyOptions.password) {
     await page.authenticate({
@@ -153,8 +124,7 @@ async function parseSite(url, proxyOptions) {
   }
 
   await page.setUserAgent(
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" +
-      "KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
   );
 
   await page.setExtraHTTPHeaders({
@@ -179,13 +149,7 @@ async function parseSite(url, proxyOptions) {
     )
       continue;
 
-    const newPath = await downloadResource(
-      origUrl,
-      url,
-      zip,
-      downloaded,
-      "assets"
-    );
+    const newPath = await downloadResource(origUrl, url, zip, downloaded, "assets");
     if (newPath) {
       html = html.replaceAll(match[0], `${match[1]}="./${newPath}"`);
     }
@@ -210,8 +174,7 @@ app.get("/", (req, res) => {
 });
 
 app.post("/parse", async (req, res) => {
-  const { url, proxyType, proxyHost, proxyPort, proxyUsername, proxyPassword } =
-    req.body;
+  const { url, proxyType, proxyHost, proxyPort, proxyUsername, proxyPassword } = req.body;
 
   console.log("📥 Получен запрос на парсинг:", req.body);
 
