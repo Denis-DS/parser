@@ -99,7 +99,7 @@ async function parseSite(url, proxyOptions) {
   const zip = new JSZip();
   const downloaded = {};
 
-  
+  const chromePath = puppeteer.executablePath();  
   const launchOptions = {
     headless: true,
     executablePath: chromePath,
