@@ -6,7 +6,6 @@
     "proxy-chain": "^2.5.9",
     "puppeteer": "^24.10.0",
     "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "postinstall": "puppeteer install"
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   }
 }
