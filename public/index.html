@@ -61,6 +61,9 @@
             </svg>
             <span class="text-blue-700 font-medium">Идет парсинг сайта...</span>
           </div>
+          <div id="long-wait-hint" class="text-sm text-gray-500 mt-2 hidden">
+            ⚠ Это может занять до 1–2 минут для больших сайтов.
+          </div>
         </div>
 
         <div id="done" class="hidden space-y-3">
@@ -68,6 +71,9 @@
           <button onclick="location.reload()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded">
             Начать новый парсинг
           </button>
+          <div id="repeat-download" class="pt-2">
+            <button id="download-again" class="text-blue-600 hover:underline">⬇️ Скачать снова</button>
+          </div>
         </div>
       </div>
     </div>
@@ -78,6 +84,9 @@
     const statusBox = document.getElementById("status");
     const parsing = document.getElementById("parsing");
     const done = document.getElementById("done");
+    const longWaitHint = document.getElementById("long-wait-hint");
+    const repeatDownload = document.getElementById("repeat-download");
+    const downloadAgainBtn = document.getElementById("download-again");
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -85,6 +94,10 @@
       form.classList.add("hidden");
       statusBox.classList.remove("hidden");
       parsing.classList.remove("hidden");
+
+      setTimeout(() => {
+        longWaitHint.classList.remove("hidden");
+      }, 15000); // ⏳ Уведомление о долгой загрузке
 
       const formData = new FormData(form);
       const body = Object.fromEntries(formData.entries());
@@ -96,10 +109,17 @@
           body: JSON.stringify(body)
         });
 
-        if (!response.ok) throw new Error("Ошибка парсинга");
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Ошибка сервера: ${errorText}`);
+        }
 
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
+
+        // Сохранение ссылки в localStorage
+        localStorage.setItem("lastDownloadUrl", url);
+
         const link = document.createElement("a");
         link.href = url;
         link.download = "site_archive.zip";
@@ -116,6 +136,21 @@
           <button onclick="location.reload()" class="mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded">
             Вернуться назад
           </button>`;
+      }
+    });
+
+    // Повторная загрузка при нажатии "Скачать снова"
+    downloadAgainBtn.addEventListener("click", () => {
+      const lastUrl = localStorage.getItem("lastDownloadUrl");
+      if (lastUrl) {
+        const link = document.createElement("a");
+        link.href = lastUrl;
+        link.download = "site_archive.zip";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        alert("Нет доступной ссылки для повторной загрузки.");
       }
     });
   </script>
