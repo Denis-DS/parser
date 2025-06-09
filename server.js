@@ -99,19 +99,7 @@ async function parseSite(url, proxyOptions) {
   const zip = new JSZip();
   const downloaded = {};
 
-  // Получаем путь к встроенному Chromium в puppeteer
-  const browserFetcher = puppeteer.createBrowserFetcher();
-  const localRevisions = await browserFetcher.localRevisions();
-  let executablePath;
-  if (localRevisions.length > 0) {
-    // Берём последнюю установленную ревизию
-    executablePath = browserFetcher.revisionInfo(localRevisions[localRevisions.length - 1]).executablePath;
-  } else {
-    console.log("⚠️ Chromium не найден, запускаем скачивание...");
-    const revisionInfo = await browserFetcher.download('latest');
-    executablePath = revisionInfo.executablePath;
-  }
-
+  
   const launchOptions = {
     headless: true,
     executablePath,
