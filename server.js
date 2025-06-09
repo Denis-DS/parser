@@ -4,23 +4,24 @@ import os from "os";
 import path from "path";
 import JSZip from "jszip";
 import { fileURLToPath } from "url";
-import puppeteer from "puppeteer-extra";
+import puppeteer from "puppeteer"; // <-- puppeteer (не puppeteer-core)
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import puppeteerExtra from "puppeteer-extra";
 import proxyChain from "proxy-chain";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static("public"));
 
-puppeteer.use(StealthPlugin());
+puppeteerExtra.use(StealthPlugin());
 
-function replaceAsync(str, regex, asyncFn) {
+async function replaceAsync(str, regex, asyncFn) {
   const matches = [];
   str.replace(regex, (match, ...args) => matches.push(asyncFn(match, ...args)));
   return Promise.all(matches).then((results) =>
@@ -40,7 +41,9 @@ async function downloadResource(url, baseUrl, zip, downloaded, folder = "assets"
     }
 
     const buffer = await res.arrayBuffer();
-    let filename = decodeURIComponent(fullUrl.split("/").pop().split("?")[0] || `file_${Date.now()}`);
+    let filename = decodeURIComponent(
+      fullUrl.split("/").pop().split("?")[0] || `file_${Date.now()}`
+    );
     if (!filename.includes(".")) filename += ".bin";
     const relPath = `${folder}/${filename}`;
     downloaded[url] = relPath;
@@ -83,7 +86,8 @@ async function processCss(css, baseUrl, zip, downloaded, folder) {
 }
 
 async function processJs(js, baseUrl, zip, downloaded, folder) {
-  const urlRegex = /(['"])(https?:\/\/[^'"]+\.(png|jpe?g|gif|svg|woff2?|ttf|eot|js|css))\1/g;
+  const urlRegex =
+    /(['"])(https?:\/\/[^'"]+\.(png|jpe?g|gif|svg|woff2?|ttf|eot|js|css))\1/g;
   return await replaceAsync(js, urlRegex, async (match, quote, url) => {
     const newPath = await downloadResource(url, baseUrl, zip, downloaded, folder);
     return newPath ? `"../${newPath}"` : match;
@@ -95,15 +99,28 @@ async function parseSite(url, proxyOptions) {
   const zip = new JSZip();
   const downloaded = {};
 
+  // Получаем путь к встроенному Chromium в puppeteer
+  const browserFetcher = puppeteer.createBrowserFetcher();
+  const localRevisions = await browserFetcher.localRevisions();
+  let executablePath;
+  if (localRevisions.length > 0) {
+    // Берём последнюю установленную ревизию
+    executablePath = browserFetcher.revisionInfo(localRevisions[localRevisions.length - 1]).executablePath;
+  } else {
+    console.log("⚠️ Chromium не найден, запускаем скачивание...");
+    const revisionInfo = await browserFetcher.download('latest');
+    executablePath = revisionInfo.executablePath;
+  }
+
   const launchOptions = {
     headless: true,
+    executablePath,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   };
 
-  let proxyUrl;
   if (proxyOptions.host && proxyOptions.port && proxyOptions.type) {
     const { type, username, password, host, port } = proxyOptions;
-    proxyUrl = `${type}://`;
+    let proxyUrl = `${type}://`;
     if (username && password) {
       proxyUrl += `${encodeURIComponent(username)}:${encodeURIComponent(password)}@`;
     }
@@ -114,8 +131,9 @@ async function parseSite(url, proxyOptions) {
     console.log(`🌐 Используем прокси: ${proxyUrl}`);
   }
 
-  const browser = await puppeteer.launch(launchOptions);
+  const browser = await puppeteerExtra.launch(launchOptions);
   const page = await browser.newPage();
+
   if (proxyOptions.username && proxyOptions.password) {
     await page.authenticate({
       username: proxyOptions.username,
@@ -124,7 +142,8 @@ async function parseSite(url, proxyOptions) {
   }
 
   await page.setUserAgent(
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+      "KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
   );
 
   await page.setExtraHTTPHeaders({
